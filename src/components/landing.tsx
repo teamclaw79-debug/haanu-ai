@@ -15,13 +15,13 @@ import {
   Shield,
   Globe,
   ArrowRight,
-  Check,
-  Star,
   ChevronRight,
   Cpu,
   Eye,
   Target,
   Layers,
+  Moon,
+  Sun,
 } from 'lucide-react';
 
 const fadeInUp = {
@@ -115,7 +115,7 @@ const examplePrompts = [
 ];
 
 export function LandingPage() {
-  const { setView } = useAppStore();
+  const { setView, theme, toggleTheme } = useAppStore();
 
   const startChat = () => {
     setView('chat');
@@ -137,6 +137,14 @@ export function LandingPage() {
               </Badge>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleTheme}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -368,162 +376,6 @@ export function LandingPage() {
                   )}
                 </motion.div>
               ))}
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Pricing Section */}
-        <section className="py-20 sm:py-28 relative">
-          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-background via-emerald-500/[0.02] to-background" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <motion.div
-              initial="initial"
-              whileInView="animate"
-              viewport={{ once: true, margin: '-100px' }}
-              variants={stagger}
-              className="text-center mb-16"
-            >
-              <motion.div variants={fadeInUp}>
-                <Badge variant="outline" className="mb-4 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
-                  Pricing
-                </Badge>
-              </motion.div>
-              <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl font-bold mb-4">
-                Simple Pricing,{' '}
-                <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-                  Zero Cost
-                </span>
-              </motion.h2>
-              <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Haanu is completely free to use. No credit card required. No hidden fees. Just start creating.
-              </motion.p>
-            </motion.div>
-
-            <motion.div
-              initial="initial"
-              whileInView="animate"
-              viewport={{ once: true, margin: '-100px' }}
-              variants={stagger}
-              className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
-            >
-              {/* Free Tier */}
-              <motion.div variants={fadeInUp}>
-                <Card className="h-full border-border/50 hover:border-emerald-500/30 transition-all duration-300">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Starter</CardTitle>
-                    <CardDescription>Perfect for trying out Haanu</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-6">
-                      <span className="text-4xl font-bold">$0</span>
-                      <span className="text-muted-foreground ml-1">/forever</span>
-                    </div>
-                    <ul className="space-y-3 text-sm">
-                      {['Unlimited messages', 'Web search', 'Code generation', 'Image generation', 'Multi-step tasks'].map(
-                        (item) => (
-                          <li key={item} className="flex items-center gap-2">
-                            <Check className="w-4 h-4 text-emerald-500" />
-                            {item}
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      onClick={startChat}
-                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
-                    >
-                      Get Started Free
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-
-              {/* Pro Tier */}
-              <motion.div variants={fadeInUp}>
-                <Card className="h-full border-emerald-500/50 shadow-lg shadow-emerald-500/10 relative">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0">
-                      <Star className="w-3 h-3 mr-1" />
-                      Most Popular
-                    </Badge>
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Pro</CardTitle>
-                    <CardDescription>For power users and teams</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-6">
-                      <span className="text-4xl font-bold">$0</span>
-                      <span className="text-muted-foreground ml-1">/forever</span>
-                    </div>
-                    <ul className="space-y-3 text-sm">
-                      {[
-                        'Everything in Starter',
-                        'Priority processing',
-                        'Advanced research mode',
-                        'Conversation history',
-                        'Export results',
-                        'API access',
-                      ].map((item) => (
-                        <li key={item} className="flex items-center gap-2">
-                          <Check className="w-4 h-4 text-emerald-500" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      onClick={startChat}
-                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25"
-                    >
-                      Get Started Free
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-
-              {/* Enterprise Tier */}
-              <motion.div variants={fadeInUp}>
-                <Card className="h-full border-border/50 hover:border-emerald-500/30 transition-all duration-300">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Enterprise</CardTitle>
-                    <CardDescription>For organizations at scale</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-6">
-                      <span className="text-4xl font-bold">$0</span>
-                      <span className="text-muted-foreground ml-1">/forever</span>
-                    </div>
-                    <ul className="space-y-3 text-sm">
-                      {[
-                        'Everything in Pro',
-                        'Custom agent configuration',
-                        'Team collaboration',
-                        'SSO & security',
-                        'Dedicated support',
-                        'SLA guarantee',
-                      ].map((item) => (
-                        <li key={item} className="flex items-center gap-2">
-                          <Check className="w-4 h-4 text-emerald-500" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      onClick={startChat}
-                      variant="outline"
-                      className="w-full hover:bg-emerald-500/5 hover:border-emerald-500/50"
-                    >
-                      Contact Us
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
             </motion.div>
           </div>
         </section>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 export type ViewMode = 'landing' | 'chat';
+export type Theme = 'light' | 'dark';
 
 export interface ToolStep {
   id: string;
@@ -24,6 +25,8 @@ export interface ChatMessage {
 interface AppState {
   view: ViewMode;
   setView: (view: ViewMode) => void;
+  theme: Theme;
+  toggleTheme: () => void;
 
   sessionId: string;
   messages: ChatMessage[];
@@ -48,6 +51,8 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   view: 'landing',
   setView: (view) => set({ view }),
+  theme: 'dark',
+  toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
 
   sessionId: `haanu-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
   messages: [],
