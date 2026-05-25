@@ -115,11 +115,3 @@ export async function sendMessage(sessionId: string | null, userMessage: string)
     console.error('[Haanu] Chat error:', error);
   }
 }
-}
-
-export function stopAgent(sessionId: string) {
-  const s = getSocket();
-  if (s.connected) {
-    s.emit('agent:stop', { sessionId });
-  }
-}
