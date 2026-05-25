@@ -1,6 +1,6 @@
 'use client';
 
-import { useAppStore, ToolStep } from './store';
+import { useAppStore } from './store';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -21,8 +21,6 @@ export async function sendChatMessage(
   conversationHistory: ChatMessage[] = []
 ): Promise<ChatResponse> {
   try {
-    const store = useAppStore.getState();
-    
     currentAbortController = new AbortController();
     
     const response = await fetch('/api/agent', {
@@ -117,37 +115,6 @@ export async function sendMessage(sessionId: string | null, userMessage: string)
     console.error('[Haanu] Chat error:', error);
   }
 }
-    });
-
-    // Screenshots are stored in both the store and listened to by the component
-    socket.on('agent:screenshot', (data: { sessionId: string; base64: string }) => {
-      const store = useAppStore.getState();
-      if (data.sessionId === store.sessionId) {
-        store.setCurrentScreenshot(data.base64);
-      }
-    });
-  }
-
-  return socket;
-}
-
-export function connectSocket(): Socket {
-  const s = getSocket();
-  if (!s.connected) {
-    s.connect();
-  }
-  return s;
-}
-
-export function disconnectSocket() {
-  if (socket?.connected) {
-    socket.disconnect();
-  }
-}
-
-export function sendMessage(sessionId: string, message: string) {
-  const s = connectSocket();
-  s.emit('agent:message', { sessionId, message });
 }
 
 export function stopAgent(sessionId: string) {
