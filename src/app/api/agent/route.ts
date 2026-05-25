@@ -63,9 +63,14 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : 'An unexpected error occurred.';
 
     console.error('[/api/agent] Error:', errorMessage);
+    console.error('[/api/agent] Full error:', error);
 
     return Response.json(
-      { error: 'Failed to generate AI response.', details: errorMessage },
+      { 
+        error: 'Failed to generate AI response.', 
+        details: errorMessage,
+        fullError: process.env.NODE_ENV === 'development' ? error : undefined
+      },
       { status: 500 }
     );
   }
