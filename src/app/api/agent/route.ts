@@ -1,27 +1,42 @@
 import { getZAI } from '@/lib/zai';
 import { randomUUID } from 'crypto';
 
-const SYSTEM_PROMPT = `You are Haanu, a helpful and intelligent AI assistant. You are conversational, knowledgeable, and friendly. You help users with a wide range of tasks including answering questions, brainstorming ideas, providing explanations, and having meaningful conversations. Be concise but thorough in your responses.`;
+const SYSTEM_PROMPT = `You are Haanu, an advanced autonomous AI agent that can actually DO tasks — not just talk about them. You are conversational, knowledgeable, and friendly. Help users with a wide range of tasks including answering questions, brainstorming ideas, providing explanations, and having meaningful conversations. Be concise but thorough in your responses.`;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message, sessionId } = body as { message?: string; sessionId?: string };
+    const { message, sessionId, messages } = body as { 
+      message?: string
+      sessionId?: string
+      messages?: Array<{ role: string; content: string }>
+    };
 
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    if (!message && !messages) {
       return Response.json(
-        { error: 'Message is required and must be a non-empty string.' },
+        { error: 'Message or messages array is required.' },
         { status: 400 }
       );
     }
 
     const zai = await getZAI();
 
+    // Build conversation history
+    const conversationMessages = messages || [];
+    
+    // Add current message if provided separately
+    if (message && typeof message === 'string' && message.trim().length > 0) {
+      conversationMessages.push({ role: 'user', content: message.trim() });
+    }
+
+    // Ensure system prompt is first
+    const allMessages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...conversationMessages
+    ];
+
     const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: message.trim() },
-      ],
+      messages: allMessages as any,
       stream: false,
     });
 
@@ -34,6 +49,10 @@ export async function POST(request: Request) {
     return Response.json({
       response: responseText,
       sessionId: newSessionId,
+      messages: [
+        ...conversationMessages,
+        { role: 'assistant', content: responseText }
+      ]
     });
   } catch (error: unknown) {
     const errorMessage =

@@ -1,103 +1,122 @@
 'use client';
 
-import { io, Socket } from 'socket.io-client';
 import { useAppStore, ToolStep } from './store';
 
-let socket: Socket | null = null;
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
-export function getSocket(): Socket {
-  if (!socket) {
-    socket = io('/?XTransformPort=3003', {
-      transports: ['websocket', 'polling'],
-      autoConnect: false,
+export interface ChatResponse {
+  response: string;
+  sessionId: string;
+  messages?: ChatMessage[];
+}
+
+let currentAbortController: AbortController | null = null;
+
+export async function sendChatMessage(
+  message: string,
+  sessionId: string | null,
+  conversationHistory: ChatMessage[] = []
+): Promise<ChatResponse> {
+  try {
+    const store = useAppStore.getState();
+    
+    currentAbortController = new AbortController();
+    
+    const response = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        sessionId,
+        messages: conversationHistory,
+      }),
+      signal: currentAbortController.signal,
     });
 
-    socket.on('connect', () => {
-      console.log('[Haanu] Connected to agent service');
-    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to get response');
+    }
 
-    socket.on('disconnect', () => {
-      console.log('[Haanu] Disconnected from agent service');
-    });
+    const data: ChatResponse = await response.json();
+    return data;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    if (errorMessage === 'AbortError') {
+      throw new Error('Chat request was cancelled');
+    }
+    
+    throw error;
+  } finally {
+    currentAbortController = null;
+  }
+}
 
-    socket.on('agent:thinking', (data: { sessionId: string; step: string }) => {
-      const store = useAppStore.getState();
-      if (data.sessionId === store.sessionId) {
-        store.setCurrentThinking(data.step);
-      }
-    });
+export function stopAgent() {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+}
 
-    socket.on('agent:tool_start', (data: { sessionId: string; tool: string; input: Record<string, unknown> }) => {
-      const store = useAppStore.getState();
-      if (data.sessionId === store.sessionId) {
-        const step: ToolStep = {
-          id: `tool-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          tool: data.tool,
-          input: data.input,
-          status: 'running',
-        };
-        store.addToolStep(step);
-      }
-    });
+export function connectSocket() {
+  // Noop for API-based approach
+  console.log('[Haanu] Ready for chat');
+}
 
-    socket.on('agent:tool_result', (data: { sessionId: string; tool: string; result: unknown }) => {
-      const store = useAppStore.getState();
-      if (data.sessionId === store.sessionId) {
-        // Find the most recent running step for this tool
-        const steps = [...store.currentToolSteps];
-        const lastStep = steps.findLast((s) => s.tool === data.tool && s.status === 'running');
-        if (lastStep) {
-          store.updateToolStep(lastStep.id, 'completed', data.result);
-        } else {
-          // If no running step found, mark the last running step
-          const anyRunning = steps.findLast((s) => s.status === 'running');
-          if (anyRunning) {
-            store.updateToolStep(anyRunning.id, 'completed', data.result);
-          }
-        }
-      }
-    });
+export function disconnectSocket() {
+  stopAgent();
+  console.log('[Haanu] Disconnected');
+}
 
-    socket.on('agent:chunk', (data: { sessionId: string; content: string }) => {
-      const store = useAppStore.getState();
-      if (data.sessionId === store.sessionId) {
-        const lastMsg = store.messages[store.messages.length - 1];
-        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isStreaming) {
-          // Replace content instead of appending (the agent sends full text, not incremental)
-          useAppStore.setState({
-            messages: store.messages.map((msg) =>
-              msg.id === lastMsg.id ? { ...msg, content: data.content } : msg
-            ),
-          });
-        }
-      }
-    });
+/**
+ * Send a message to Haanu and handle the response
+ */
+export async function sendMessage(sessionId: string | null, userMessage: string) {
+  try {
+    const store = useAppStore.getState();
+    
+    // Build conversation history from current messages
+    const conversationHistory = store.messages
+      .filter((msg) => msg.role !== 'assistant' || !msg.isStreaming)
+      .map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
 
-    socket.on('agent:complete', (data: { sessionId: string; message: string }) => {
-      const store = useAppStore.getState();
-      if (data.sessionId === store.sessionId) {
-        const lastMsg = store.messages[store.messages.length - 1];
-        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isStreaming) {
-          store.finalizeAssistantMessage(lastMsg.id, data.message);
-        }
-        store.setAgentRunning(false);
-        store.setCurrentThinking(null);
-      }
-    });
+    // Send the message
+    const result = await sendChatMessage(userMessage, sessionId || store.sessionId, conversationHistory);
 
-    socket.on('agent:error', (data: { sessionId: string; error: string }) => {
-      const store = useAppStore.getState();
-      if (data.sessionId === store.sessionId) {
-        const lastMsg = store.messages[store.messages.length - 1];
-        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isStreaming) {
-          store.finalizeAssistantMessage(
-            lastMsg.id,
-            lastMsg.content + `\n\n⚠️ Error: ${data.error}`
-          );
-        }
-        store.setAgentRunning(false);
-        store.setCurrentThinking(null);
-      }
+    // Update the store with the response
+    const lastMsg = store.messages[store.messages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isStreaming) {
+      store.finalizeAssistantMessage(lastMsg.id, result.response);
+    }
+
+    store.setAgentRunning(false);
+    store.setCurrentThinking(null);
+  } catch (error: unknown) {
+    const store = useAppStore.getState();
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    const lastMsg = store.messages[store.messages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isStreaming) {
+      store.finalizeAssistantMessage(
+        lastMsg.id,
+        (lastMsg.content || '') + `\n\n⚠️ Error: ${errorMessage}`
+      );
+    }
+
+    store.setAgentRunning(false);
+    store.setCurrentThinking(null);
+    
+    console.error('[Haanu] Chat error:', error);
+  }
+}
     });
 
     // Screenshots are stored in both the store and listened to by the component
