@@ -1,5 +1,9 @@
 import { getZAI } from '@/lib/zai';
-import { randomUUID } from 'crypto';
+
+// Simple UUID generator
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
 
 const SYSTEM_PROMPT = `You are Haanu, an advanced autonomous AI agent that can actually DO tasks — not just talk about them. You are conversational, knowledgeable, and friendly. Help users with a wide range of tasks including answering questions, brainstorming ideas, providing explanations, and having meaningful conversations. Be concise but thorough in your responses.`;
 
@@ -21,7 +25,6 @@ export async function POST(request: Request) {
 
     // Debug log
     console.log('[/api/agent] Received message:', message?.substring(0, 50));
-    console.log('[/api/agent] SARVAM_API_KEY exists:', !!process.env.SARVAM_API_KEY);
 
     const zai = await getZAI();
 
@@ -48,7 +51,7 @@ export async function POST(request: Request) {
       completion.choices?.[0]?.message?.content ??
       'I apologize, but I was unable to generate a response. Please try again.';
 
-    const newSessionId = sessionId || randomUUID();
+    const newSessionId = sessionId || generateId();
 
     return Response.json({
       response: responseText,
@@ -68,8 +71,7 @@ export async function POST(request: Request) {
     return Response.json(
       { 
         error: 'Failed to generate AI response.', 
-        details: errorMessage,
-        fullError: process.env.NODE_ENV === 'development' ? error : undefined
+        details: errorMessage
       },
       { status: 500 }
     );
