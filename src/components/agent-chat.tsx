@@ -415,9 +415,9 @@ export function AgentChat() {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/50">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setView('landing')} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8">
               <ArrowLeft className="w-4 h-4" />
-            <span className="sr-only">Back</span>
+            <span className="sr-only">Sign Out</span>
             </Button>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-2">
