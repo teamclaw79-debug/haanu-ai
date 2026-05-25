@@ -40,14 +40,24 @@ export async function getZAI() {
               });
 
               if (!response.ok) {
-                const error = await response.json();
+                let errorData: any = {};
+                try {
+                  errorData = await response.json();
+                } catch {
+                  errorData = { text: await response.text() };
+                }
+                const errorMsg = errorData.message || errorData.error || JSON.stringify(errorData);
                 throw new Error(
-                  error.message || `Sarvam API error: ${response.statusText}`
+                  `Sarvam API error (${response.status}): ${errorMsg}`
                 );
               }
 
               const data = await response.json();
               const content = data.choices?.[0]?.message?.content || "";
+
+              if (!content) {
+                throw new Error("No content in Sarvam API response");
+              }
 
               return {
                 choices: [

@@ -19,6 +19,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Debug log
+    console.log('[/api/agent] Received message:', message?.substring(0, 50));
+    console.log('[/api/agent] SARVAM_API_KEY exists:', !!process.env.SARVAM_API_KEY);
+
     const zai = await getZAI();
 
     // Build conversation history
