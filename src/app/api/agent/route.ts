@@ -108,10 +108,17 @@ export async function POST(request: Request) {
         ' All chat backends failed. The free option is OPENROUTER_API_KEY — get one at https://openrouter.ai/keys and add it to .env.local, then restart.';
     }
 
+    const detailedMessage = errorMessage + hint;
+
     return Response.json(
       {
-        error: 'Failed to generate AI response.',
-        details: errorMessage + hint,
+        // Note: put the actionable message in BOTH fields so it shows up
+        // regardless of which field the frontend reads. Older frontend
+        // versions read `error` first and would show only the generic
+        // "Failed to generate AI response." — putting the full message in
+        // `error` too means even old frontends will show the actual cause.
+        error: detailedMessage,
+        details: detailedMessage,
       },
       { status: 500 }
     );
