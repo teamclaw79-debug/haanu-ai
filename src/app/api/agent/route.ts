@@ -1,4 +1,4 @@
-import { getZAI } from '@/lib/zai';
+import { geminiChat } from '@/lib/gemini';
 
 // Simple UUID generator
 function generateId(): string {
@@ -29,14 +29,20 @@ export async function POST(request: Request) {
 
     console.log('[/api/agent] Received message:', message?.substring(0, 50));
 
-    const zai = await getZAI();
-
     // Build conversation history. The client may send either a single
     // `message` or a pre-built `messages` array (or both — in that case we
     // append the new message to the history).
-    const conversationMessages: Array<{ role: string; content: string }> = (
+    const conversationMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = (
       messages || []
-    ).filter((m) => m && typeof m.content === 'string');
+    )
+      .filter((m) => m && typeof m.content === 'string')
+      .map((m) => ({
+        role: (m.role === 'assistant' ? 'assistant' : m.role === 'system' ? 'system' : 'user') as
+          | 'system'
+          | 'user'
+          | 'assistant',
+        content: m.content,
+      }));
 
     if (message && typeof message === 'string' && message.trim().length > 0) {
       conversationMessages.push({ role: 'user', content: message.trim() });
@@ -51,19 +57,16 @@ export async function POST(request: Request) {
 
     // Ensure the system prompt is the first message the model sees.
     const allMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system' as const, content: SYSTEM_PROMPT },
       ...conversationMessages,
     ];
 
-    const completion = await zai.chat.completions.create({
-      messages: allMessages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-      stream: false,
-      thinking: { type: 'disabled' },
+    // Use Gemini for chat completion.
+    const responseText = await geminiChat(allMessages, {
+      model: 'gemini-2.0-flash',
+      temperature: 0.7,
+      maxOutputTokens: 2048,
     });
-
-    const responseText =
-      completion.choices?.[0]?.message?.content ??
-      'I apologize, but I was unable to generate a response. Please try again.';
 
     const newSessionId = sessionId || generateId();
 

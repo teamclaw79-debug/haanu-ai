@@ -1,4 +1,4 @@
-import { getZAI } from '@/lib/zai';
+import { geminiChat } from '@/lib/gemini';
 
 const CODE_SYSTEM_PROMPT = `You are Haanu, an expert software engineer and coding assistant. When the user describes what they want to build or a coding problem, you respond ONLY with the code solution. Follow these rules:
 
@@ -25,26 +25,27 @@ export async function POST(request: Request) {
       ? `Write ${language} code for the following: ${description.trim()}`
       : `Write code for the following: ${description.trim()}`;
 
-    const zai = await getZAI();
-
-    const completion = await zai.chat.completions.create({
-      messages: [
+    // Code generation benefits from slightly lower temperature for determinism.
+    const code = await geminiChat(
+      [
         { role: 'system', content: CODE_SYSTEM_PROMPT },
         { role: 'user', content: userMessage },
       ],
-      stream: false,
-      thinking: { type: 'disabled' },
-    });
+      {
+        model: 'gemini-2.0-flash',
+        temperature: 0.3,
+        maxOutputTokens: 4096,
+      }
+    );
 
-    const code =
-      completion.choices?.[0]?.message?.content ??
-      '// Unable to generate code. Please try again.';
+    const fallback = '// Unable to generate code. Please try again.';
+    const codeText = code || fallback;
 
     // Try to detect the language from the markdown code fence in the response.
-    const detectedLanguage = extractLanguageFromCode(code) || language || 'text';
+    const detectedLanguage = extractLanguageFromCode(codeText) || language || 'text';
 
     return Response.json({
-      code,
+      code: codeText,
       language: detectedLanguage,
     });
   } catch (error: unknown) {
