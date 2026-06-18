@@ -46,7 +46,14 @@ export async function sendChatMessage(
       } catch {
         // Response wasn't JSON — fall through to a generic message
       }
-      throw new Error(errorPayload.error || errorPayload.details || `Request failed with status ${response.status}`);
+      // Show the SPECIFIC error (details) when available — much more useful
+      // for debugging than the generic "Failed to generate AI response."
+      // message the route returns as `error`.
+      throw new Error(
+        errorPayload.details ||
+          errorPayload.error ||
+          `Request failed with status ${response.status}`
+      );
     }
 
     const data: ChatResponse = await response.json();

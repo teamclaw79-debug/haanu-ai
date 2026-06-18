@@ -95,10 +95,23 @@ export async function POST(request: Request) {
     console.error('[/api/agent] Error:', errorMessage);
     console.error('[/api/agent] Full error:', error);
 
+    // Add a hint when the root cause looks like missing env vars.
+    // The most common failure mode is "all backends failed" because
+    // OPENROUTER_API_KEY isn't set (the only free backend).
+    let hint = '';
+    const lowerMsg = errorMessage.toLowerCase();
+    if (lowerMsg.includes('openrouter_api_key') || lowerMsg.includes('environment variable is not set')) {
+      hint =
+        ' Set OPENROUTER_API_KEY in .env.local (free key at https://openrouter.ai/keys), then restart the dev server.';
+    } else if (lowerMsg.includes('all backends failed')) {
+      hint =
+        ' All chat backends failed. The free option is OPENROUTER_API_KEY — get one at https://openrouter.ai/keys and add it to .env.local, then restart.';
+    }
+
     return Response.json(
       {
         error: 'Failed to generate AI response.',
-        details: errorMessage,
+        details: errorMessage + hint,
       },
       { status: 500 }
     );
