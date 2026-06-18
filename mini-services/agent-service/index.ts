@@ -33,10 +33,15 @@ interface Conversation {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const PORT = 3003;
+const PORT = Number(process.env.AGENT_SERVICE_PORT || 3003);
 const MAX_TOOL_ROUNDS = 20;
 const SCREENSHOT_DIR = path.join(os.tmpdir(), 'haanu-screenshots');
-const AGENT_BROWSER_PATH = '/home/z/.npm-global/bin/agent-browser';
+// Resolve agent-browser from $PATH (preferred). Allow override via env var
+// for unusual installs. Fallbacks cover the common global install locations
+// so the service works out of the box on most dev machines.
+const AGENT_BROWSER_PATH =
+  process.env.AGENT_BROWSER_PATH ||
+  'agent-browser';
 
 // Ensure screenshot directory exists
 if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -164,7 +169,6 @@ function runBrowserCommand(cmd: string, session?: string): { success: boolean; o
       maxBuffer: 10 * 1024 * 1024,
       env: {
         ...process.env,
-        PATH: `/home/z/.npm-global/bin:${process.env.PATH}`,
         AGENT_BROWSER_DEFAULT_TIMEOUT: '15000',
       },
     });
@@ -847,7 +851,7 @@ async function startServer() {
       const testOutput = execSync(`${AGENT_BROWSER_PATH} --version 2>&1`, {
         encoding: 'utf-8',
         timeout: 5000,
-        env: { ...process.env, PATH: `/home/z/.npm-global/bin:${process.env.PATH}` },
+        env: { ...process.env },
       });
       console.log(`[Haanu] agent-browser CLI: AVAILABLE (v${testOutput.trim()})`);
     } catch {
@@ -856,7 +860,7 @@ async function startServer() {
         const whichOutput = execSync('which agent-browser 2>&1', { encoding: 'utf-8', timeout: 5000 });
         console.log(`[Haanu] agent-browser CLI: AVAILABLE at ${whichOutput.trim()}`);
       } catch {
-        console.warn(`[Haanu] agent-browser CLI: NOT FOUND at ${AGENT_BROWSER_PATH}. Browser automation will not work.`);
+        console.warn(`[Haanu] agent-browser CLI: NOT FOUND. Set AGENT_BROWSER_PATH or ensure it is on $PATH. Browser automation will not work.`);
       }
     }
 

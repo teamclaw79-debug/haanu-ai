@@ -347,6 +347,7 @@ export function AgentChat() {
     currentScreenshot,
     setView,
     addUserMessage,
+    addAssistantMessage,
     setAgentRunning,
     clearChat,
     setCurrentScreenshot,
@@ -366,7 +367,7 @@ export function AgentChat() {
 
   // Connect socket on mount
   useEffect(() => {
-    const socket = connectSocket();
+    connectSocket();
 
     return () => {
       disconnectSocket();
@@ -377,23 +378,19 @@ export function AgentChat() {
     if (!input.trim() || isAgentRunning) return;
 
     const userMessage = input.trim();
+    const assistantId = `assistant-${Date.now()}`;
     setInput('');
     setCurrentScreenshot(null);
     addUserMessage(userMessage);
     setAgentRunning(true);
+    // Create the placeholder assistant message via the proper store action
+    // so the sessions array stays in sync. Direct mutation of the messages
+    // array (the old approach) bypassed session persistence and broke
+    // Zustand's reactivity contract.
+    addAssistantMessage(assistantId);
 
-    // Create placeholder assistant message
-    useAppStore.getState().messages.push({
-      id: `assistant-${Date.now()}`,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      isStreaming: true,
-    });
-    useAppStore.setState({ messages: [...useAppStore.getState().messages] });
-
-    sendMessage(sessionId, userMessage);
-  }, [input, isAgentRunning, sessionId, addUserMessage, setAgentRunning, setCurrentScreenshot]);
+    sendMessage(sessionId, userMessage, assistantId);
+  }, [input, isAgentRunning, sessionId, addUserMessage, addAssistantMessage, setAgentRunning, setCurrentScreenshot]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

@@ -5,15 +5,19 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
-const SYSTEM_PROMPT = `You are Haanu, an advanced autonomous AI agent that can actually DO tasks — not just talk about them. You are conversational, knowledgeable, and friendly. Help users with a wide range of tasks including answering questions, brainstorming ideas, providing explanations, and having meaningful conversations. Be concise but thorough in your responses.`;
+const SYSTEM_PROMPT = `You are Haanu, an advanced AI agent that can actually DO tasks — not just talk about them. You are conversational, knowledgeable, and friendly. Help users with a wide range of tasks including answering questions, brainstorming ideas, providing explanations, writing code, and having meaningful conversations.
+
+When a user asks you to perform a task that requires tools (such as browsing a website, generating an image, or running a web search), let them know what you would do and guide them on how to use the dedicated buttons in the UI. For pure conversation, questions, and explanations, respond directly with a clear, well-structured answer.
+
+Be concise but thorough. Use Markdown formatting (headings, lists, code blocks) when it improves readability. Do not fabricate facts — if you are unsure, say so.`;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message, sessionId, messages } = body as { 
-      message?: string
-      sessionId?: string
-      messages?: Array<{ role: string; content: string }>
+    const { message, sessionId, messages } = body as {
+      message?: string;
+      sessionId?: string;
+      messages?: Array<{ role: string; content: string }>;
     };
 
     if (!message && !messages) {
@@ -23,28 +27,38 @@ export async function POST(request: Request) {
       );
     }
 
-    // Debug log
     console.log('[/api/agent] Received message:', message?.substring(0, 50));
 
     const zai = await getZAI();
 
-    // Build conversation history
-    const conversationMessages = messages || [];
-    
-    // Add current message if provided separately
+    // Build conversation history. The client may send either a single
+    // `message` or a pre-built `messages` array (or both — in that case we
+    // append the new message to the history).
+    const conversationMessages: Array<{ role: string; content: string }> = (
+      messages || []
+    ).filter((m) => m && typeof m.content === 'string');
+
     if (message && typeof message === 'string' && message.trim().length > 0) {
       conversationMessages.push({ role: 'user', content: message.trim() });
     }
 
-    // Ensure system prompt is first
+    if (conversationMessages.length === 0) {
+      return Response.json(
+        { error: 'No user message provided.' },
+        { status: 400 }
+      );
+    }
+
+    // Ensure the system prompt is the first message the model sees.
     const allMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
-      ...conversationMessages
+      ...conversationMessages,
     ];
 
     const completion = await zai.chat.completions.create({
-      messages: allMessages as any,
+      messages: allMessages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
       stream: false,
+      thinking: { type: 'disabled' },
     });
 
     const responseText =
@@ -58,8 +72,8 @@ export async function POST(request: Request) {
       sessionId: newSessionId,
       messages: [
         ...conversationMessages,
-        { role: 'assistant', content: responseText }
-      ]
+        { role: 'assistant', content: responseText },
+      ],
     });
   } catch (error: unknown) {
     const errorMessage =
@@ -69,9 +83,9 @@ export async function POST(request: Request) {
     console.error('[/api/agent] Full error:', error);
 
     return Response.json(
-      { 
-        error: 'Failed to generate AI response.', 
-        details: errorMessage
+      {
+        error: 'Failed to generate AI response.',
+        details: errorMessage,
       },
       { status: 500 }
     );

@@ -77,6 +77,14 @@ interface AppState {
 // Generate a unique session ID
 const generateSessionId = () => `haanu-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
+// Build a fresh ChatSession object for a given id
+const createSessionObject = (id: string): ChatSession => ({
+  id,
+  messages: [],
+  createdAt: Date.now(),
+  lastUpdated: Date.now(),
+});
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -109,6 +117,12 @@ export const useAppStore = create<AppState>()(
       currentToolSteps: [],
       currentScreenshot: null,
 
+      // Internal helper: ensure the current sessionId has a corresponding
+      // ChatSession entry in state.sessions. Without this, the first chat
+      // after app boot (and any chat started via clearChat) would never be
+      // persisted because the sessions array would have no matching entry.
+      // Implemented inline via set/get to keep the store self-contained.
+
       addUserMessage: (content) => {
         const msg: ChatMessage = {
           id: `msg-${Date.now()}`,
@@ -118,12 +132,18 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => {
           const newMessages = [...state.messages, msg];
-          // Update current session
-          const sessions = state.sessions.map(s => 
-            s.id === state.sessionId 
-              ? { ...s, messages: newMessages, lastUpdated: Date.now() }
-              : s
-          );
+          // Ensure the current session exists in the sessions array
+          const hasSession = state.sessions.some((s) => s.id === state.sessionId);
+          const sessions = hasSession
+            ? state.sessions.map((s) =>
+                s.id === state.sessionId
+                  ? { ...s, messages: newMessages, lastUpdated: Date.now() }
+                  : s
+              )
+            : [
+                { ...createSessionObject(state.sessionId), messages: newMessages },
+                ...state.sessions,
+              ];
           return { messages: newMessages, sessions };
         });
       },
@@ -138,11 +158,17 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => {
           const newMessages = [...state.messages, msg];
-          const sessions = state.sessions.map(s => 
-            s.id === state.sessionId 
-              ? { ...s, messages: newMessages, lastUpdated: Date.now() }
-              : s
-          );
+          const hasSession = state.sessions.some((s) => s.id === state.sessionId);
+          const sessions = hasSession
+            ? state.sessions.map((s) =>
+                s.id === state.sessionId
+                  ? { ...s, messages: newMessages, lastUpdated: Date.now() }
+                  : s
+              )
+            : [
+                { ...createSessionObject(state.sessionId), messages: newMessages },
+                ...state.sessions,
+              ];
           return { messages: newMessages, sessions };
         });
       },
@@ -152,8 +178,8 @@ export const useAppStore = create<AppState>()(
           const newMessages = state.messages.map((msg) =>
             msg.id === id ? { ...msg, content: msg.content + content } : msg
           );
-          const sessions = state.sessions.map(s => 
-            s.id === state.sessionId 
+          const sessions = state.sessions.map((s) =>
+            s.id === state.sessionId
               ? { ...s, messages: newMessages, lastUpdated: Date.now() }
               : s
           );
@@ -166,8 +192,8 @@ export const useAppStore = create<AppState>()(
           const newMessages = state.messages.map((msg) =>
             msg.id === id ? { ...msg, content, isStreaming: false, thinking: undefined } : msg
           );
-          const sessions = state.sessions.map(s => 
-            s.id === state.sessionId 
+          const sessions = state.sessions.map((s) =>
+            s.id === state.sessionId
               ? { ...s, messages: newMessages, lastUpdated: Date.now() }
               : s
           );
@@ -197,14 +223,17 @@ export const useAppStore = create<AppState>()(
 
       clearChat: () => {
         const newSessionId = generateSessionId();
-        set({
+        const newSession = createSessionObject(newSessionId);
+        set((state) => ({
           messages: [],
           currentToolSteps: [],
           currentThinking: null,
           currentScreenshot: null,
           isAgentRunning: false,
           sessionId: newSessionId,
-        });
+          // Pre-seed the new session so subsequent messages persist correctly.
+          sessions: [newSession, ...state.sessions],
+        }));
       },
       
       // Session management

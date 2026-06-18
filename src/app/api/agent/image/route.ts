@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       size: validatedSize,
     });
 
+    // The SDK returns an array of { base64 } objects. We pick the first one.
     const base64 = response.data?.[0]?.base64;
 
     if (!base64) {

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   keywords: ["Haanu", "AI Agent", "autonomous AI", "web search", "code generation", "image generation", "free AI"],
   authors: [{ name: "Haanu AI" }],
   icons: {
-    icon: "/haanu-logo.png",
+    icon: "/haanu-favicon.svg",
   },
   openGraph: {
     title: "Haanu — AI Agent That Gets Things Done",

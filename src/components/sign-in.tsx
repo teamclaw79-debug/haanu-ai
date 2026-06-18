@@ -9,18 +9,35 @@ import { motion } from 'framer-motion';
 import { AgentAvatar } from '@/components/agent-avatar';
 import { Mail, ArrowRight, Sparkles } from 'lucide-react';
 
+// Minimal email sanity check — we don't need a full RFC validator for an
+// email-only sign-in flow, just enough to catch obvious typos.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function SignInPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const signIn = useAppStore((s) => s.signIn);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-    
+    setError(null);
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!EMAIL_RE.test(trimmed)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await signIn(email.trim());
+      await signIn(trimmed);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Sign-in failed. Please try again.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +80,11 @@ export function SignInPage() {
                     required
                   />
                 </div>
+                {error && (
+                  <p className="text-xs text-red-500 mt-1" role="alert">
+                    {error}
+                  </p>
+                )}
               </div>
               <Button
                 type="submit"
@@ -82,18 +104,18 @@ export function SignInPage() {
                 )}
               </Button>
             </form>
-            
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border/50" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-card px-2 text-muted-foreground">
-                  Secure & Private
+                  Secure &amp; Private
                 </span>
               </div>
             </div>
-            
+
             <p className="text-xs text-center text-muted-foreground">
               By continuing, you agree to our Terms of Service and Privacy Policy.
               Your chats are saved locally and synced across sessions.

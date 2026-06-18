@@ -33,13 +33,14 @@ export async function POST(request: Request) {
         { role: 'user', content: userMessage },
       ],
       stream: false,
+      thinking: { type: 'disabled' },
     });
 
     const code =
       completion.choices?.[0]?.message?.content ??
       '// Unable to generate code. Please try again.';
 
-    // Try to detect language from the response code block
+    // Try to detect the language from the markdown code fence in the response.
     const detectedLanguage = extractLanguageFromCode(code) || language || 'text';
 
     return Response.json({

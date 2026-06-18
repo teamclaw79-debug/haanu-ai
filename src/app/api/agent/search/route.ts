@@ -13,14 +13,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const resultCount = num && Number.isInteger(num) && num > 0 ? Math.min(num, 20) : 10;
+    // Clamp the requested result count to a sane range. The SDK accepts an
+    // optional `num` field; default to 10 and never return more than 20.
+    const resultCount =
+      num && Number.isInteger(num) && num > 0 ? Math.min(num, 20) : 10;
 
     const zai = await getZAI();
 
-    const results: SearchFunctionResultItem[] = await zai.functions.invoke('web_search', {
-      query: query.trim(),
-      num: resultCount,
-    });
+    const results: SearchFunctionResultItem[] = await zai.functions.invoke(
+      'web_search',
+      {
+        query: query.trim(),
+        num: resultCount,
+      }
+    );
 
     return Response.json({ results });
   } catch (error: unknown) {

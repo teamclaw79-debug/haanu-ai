@@ -265,7 +265,7 @@ export function LandingPage() {
                   </div>
                 </div>
                 <img
-                  src="/haanu-hero.png"
+                  src="/haanu-hero.svg"
                   alt="Haanu AI Agent Interface"
                   className="w-full object-cover"
                 />

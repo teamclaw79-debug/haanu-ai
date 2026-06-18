@@ -1,82 +1,40 @@
-let sarvamInstance: any = null;
+import ZAI from 'z-ai-web-dev-sdk';
 
-export async function getZAI() {
-  if (!sarvamInstance) {
-    const apiKey = process.env.SARVAM_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error(
-        "SARVAM_API_KEY environment variable is not set. Please add it to your Vercel environment variables."
-      );
-    }
-    
-    sarvamInstance = {
-      apiKey,
-      chat: {
-        completions: {
-          create: async (options: any) => {
-            const messages = options.messages || [];
-            
-            // Convert messages to Sarvam format
-            const sarvamMessages = messages.map((msg: any) => ({
-              role: msg.role === "assistant" ? "assistant" : msg.role === "system" ? "system" : "user",
-              content: msg.content,
-            }));
-            
-            try {
-              const response = await fetch("https://api.sarvam.ai/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "api-subscription-key": apiKey,
-                },
-                body: JSON.stringify({
-                  model: "Meta-Llama-3-8B-Instruct",
-                  messages: sarvamMessages,
-                  temperature: 0.7,
-                  top_p: 0.9,
-                  max_tokens: 2048,
-                }),
-              });
+let zaiInstance: ZAI | null = null;
 
-              if (!response.ok) {
-                let errorData: any = {};
-                try {
-                  errorData = await response.json();
-                } catch {
-                  errorData = { text: await response.text() };
-                }
-                const errorMsg = errorData.message || errorData.error || JSON.stringify(errorData);
-                throw new Error(
-                  `Sarvam API error (${response.status}): ${errorMsg}`
-                );
-              }
+/**
+ * Initialize and return a singleton ZAI SDK instance.
+ *
+ * The SDK reads its API key from the `ZAI_API_KEY` environment variable
+ * automatically. We fall back to the legacy `SARVAM_API_KEY` env var for
+ * backwards compatibility with existing deployments, but the recommended
+ * variable is `ZAI_API_KEY`.
+ */
+export async function getZAI(): Promise<ZAI> {
+  if (zaiInstance) return zaiInstance;
 
-              const data = await response.json();
-              const content = data.choices?.[0]?.message?.content || "";
+  // The SDK picks up ZAI_API_KEY automatically. We only validate here so the
+  // error message is friendly if the user forgot to set it.
+  const apiKey =
+    process.env.ZAI_API_KEY ||
+    process.env.SARVAM_API_KEY ||
+    process.env.NEXT_PUBLIC_ZAI_API_KEY;
 
-              if (!content) {
-                throw new Error("No content in Sarvam API response");
-              }
-
-              return {
-                choices: [
-                  {
-                    message: {
-                      content,
-                    },
-                  },
-                ],
-              };
-            } catch (error) {
-              console.error("[Sarvam AI] Error:", error);
-              throw error;
-            }
-          },
-        },
-      },
-    };
+  if (!apiKey) {
+    throw new Error(
+      'ZAI_API_KEY environment variable is not set. Please add it to your Vercel environment variables or .env.local file.'
+    );
   }
-  
-  return sarvamInstance;
+
+  try {
+    // The SDK reads ZAI_API_KEY from process.env internally; create() handles
+    // configuration. We expose the key explicitly via env so the SDK can pick
+    // it up regardless of runtime (Node, Bun, Edge).
+    (process.env as Record<string, string>).ZAI_API_KEY = apiKey;
+    zaiInstance = await ZAI.create();
+    return zaiInstance;
+  } catch (error) {
+    console.error('[ZAI] Failed to initialize ZAI SDK:', error);
+    throw error;
+  }
 }
