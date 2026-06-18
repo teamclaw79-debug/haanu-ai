@@ -1,4 +1,4 @@
-import { geminiChat } from '@/lib/gemini';
+import { chatWithFallback } from '@/lib/chat-backend';
 
 // Simple UUID generator
 function generateId(): string {
@@ -61,21 +61,31 @@ export async function POST(request: Request) {
       ...conversationMessages,
     ];
 
-    // Use Gemini for chat completion.
-    const responseText = await geminiChat(allMessages, {
-      model: 'gemini-2.0-flash',
+    // Try Gemini first, fall back to Z.AI on quota/region errors.
+    // This keeps chat working even when Gemini's free-tier quota is 0
+    // (the user's current situation) — Z.AI picks up automatically.
+    const result = await chatWithFallback(allMessages, {
       temperature: 0.7,
       maxOutputTokens: 2048,
     });
 
+    if (result.fallbackReason) {
+      console.warn(
+        `[/api/agent] Used ${result.backend} (fallback reason: ${result.fallbackReason})`
+      );
+    } else {
+      console.log(`[/api/agent] Used ${result.backend}`);
+    }
+
     const newSessionId = sessionId || generateId();
 
     return Response.json({
-      response: responseText,
+      response: result.text,
       sessionId: newSessionId,
+      backend: result.backend,
       messages: [
         ...conversationMessages,
-        { role: 'assistant', content: responseText },
+        { role: 'assistant', content: result.text },
       ],
     });
   } catch (error: unknown) {

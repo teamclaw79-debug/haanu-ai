@@ -1,4 +1,4 @@
-import { geminiChat } from '@/lib/gemini';
+import { chatWithFallback } from '@/lib/chat-backend';
 
 const CODE_SYSTEM_PROMPT = `You are Haanu, an expert software engineer and coding assistant. When the user describes what they want to build or a coding problem, you respond ONLY with the code solution. Follow these rules:
 
@@ -26,20 +26,26 @@ export async function POST(request: Request) {
       : `Write code for the following: ${description.trim()}`;
 
     // Code generation benefits from slightly lower temperature for determinism.
-    const code = await geminiChat(
+    // chatWithFallback tries Gemini first; falls back to Z.AI on quota errors.
+    const result = await chatWithFallback(
       [
         { role: 'system', content: CODE_SYSTEM_PROMPT },
         { role: 'user', content: userMessage },
       ],
       {
-        model: 'gemini-2.0-flash',
         temperature: 0.3,
         maxOutputTokens: 4096,
       }
     );
 
+    if (result.fallbackReason) {
+      console.warn(
+        `[/api/agent/code] Used ${result.backend} (fallback reason: ${result.fallbackReason})`
+      );
+    }
+
     const fallback = '// Unable to generate code. Please try again.';
-    const codeText = code || fallback;
+    const codeText = result.text || fallback;
 
     // Try to detect the language from the markdown code fence in the response.
     const detectedLanguage = extractLanguageFromCode(codeText) || language || 'text';
@@ -47,6 +53,7 @@ export async function POST(request: Request) {
     return Response.json({
       code: codeText,
       language: detectedLanguage,
+      backend: result.backend,
     });
   } catch (error: unknown) {
     const errorMessage =
